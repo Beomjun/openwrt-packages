@@ -7,12 +7,10 @@ on:
         description: "stable or beta"
         required: true
         default: "stable"
-      arch:
-        description: "OpenWrt SDK arch (e.g. x86_64, aarch64_cortex-a53)"
+      arch_dir:
+        description: "Packages output arch dir name (e.g. x86_64, aarch64_cortex-a53, mipsel_24kc)"
         required: true
         default: "x86_64"
-  # schedule:
-  #   - cron: "0 3 * * *"
 
 permissions:
   contents: write
@@ -22,73 +20,118 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CHANNEL: ${{ inputs.channel || 'stable' }}
-      ARCH: ${{ inputs.arch || 'x86_64' }}
+      CHANNEL: ${{ inputs.channel }}
+      ARCH_DIR: ${{ inputs.arch_dir }}
 
+      # Pages에 배포할 루트
       PUBLISH_ROOT: repo
 
-      SRC1_REPO: Beomjun/safeshield
-      SRC1_PATH: src/safeshield
+      # OpenWrt 소스
+      OPENWRT_REPO: Beomjun/openwrt
+      OPENWRT_REF: production
 
-      # SRC2_REPO: Beomjun/openwrt-extra-packages
-      # SRC2_PATH: src/extra
-
-      BUILD_PACKAGES: "luci-app-safeshield safeshield"
+      # 패키지 소스 repo들
+      SRC_SAFE_REPO: Beomjun/safeshield
+      SRC_SAFE_REF: main
+      SRC_LUCI_REPO: Beomjun/luci-app-safeshield
+      SRC_LUCI_REF: main
 
     steps:
-      - name: Checkout pages repo
+      - name: Checkout pages repo (this repo)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Checkout package sources (multi repos)
+      - name: Checkout OpenWrt (production)
         uses: actions/checkout@v4
         with:
-          repository: ${{ env.SRC1_REPO }}
-          path: ${{ env.SRC1_PATH }}
-          ref: develop
+          repository: ${{ env.OPENWRT_REPO }}
+          ref: ${{ env.OPENWRT_REF }}
+          path: openwrt
           fetch-depth: 0
 
-      # - name: Checkout extra packages repo
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ${{ env.SRC2_REPO }}
-      #     path: ${{ env.SRC2_PATH }}
-      #     fetch-depth: 0
+      - name: Checkout SafeShield source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SRC_SAFE_REPO }}
+          ref: ${{ env.SRC_SAFE_REF }}
+          path: src/safeshield
+          fetch-depth: 0
 
-      - name: Merge sources into one local feed
+      - name: Checkout LuCI app source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SRC_LUCI_REPO }}
+          ref: ${{ env.SRC_LUCI_REF }}
+          path: src/luci-app-safeshield
+          fetch-depth: 0
+
+      - name: Install build dependencies (Ubuntu)
         run: |
           set -eux
-          rm -rf localfeed
-          mkdir -p localfeed
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gawk git gettext libncurses5-dev libssl-dev \
+            python3 rsync unzip file wget curl ca-certificates zlib1g-dev
 
-          rsync -a --delete "${SRC1_PATH}/" "localfeed/safeshield/"
-
-      - name: Build with OpenWrt SDK (generate Packages.gz)
-        uses: openwrt/gh-action-sdk@main
-        env:
-          ARCH: ${{ env.ARCH }}
-
-          FEEDNAME: beomjun
-          FEED_DIR: ${{ github.workspace }}/localfeed
-
-          # NO_DEFAULT_FEEDS: 1
-
-          PACKAGES: ${{ env.BUILD_PACKAGES }}
-
-          INDEX: 1
-
-      - name: Prepare publish directory
+      - name: Prepare OpenWrt feeds and packages
         run: |
           set -eux
-          out="${PUBLISH_ROOT}/${ARCH}/${CHANNEL}"
+          cd openwrt
+
+          # feeds 갱신 (luci.mk 등 필요)
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+          # 로컬 패키지를 "package/" 아래에 직접 배치 (가장 확실)
+          rm -rf package/safeshield package/luci-app-safeshield
+          rsync -a --delete "${GITHUB_WORKSPACE}/src/safeshield/" "package/safeshield/"
+          rsync -a --delete "${GITHUB_WORKSPACE}/src/luci-app-safeshield/" "package/luci-app-safeshield/"
+
+          # 존재 확인
+          test -f "package/safeshield/Makefile"
+          test -f "package/luci-app-safeshield/Makefile"
+
+      - name: Configure OpenWrt (defconfig)
+        run: |
+          set -eux
+          cd openwrt
+          make defconfig
+
+      - name: Build packages
+        run: |
+          set -eux
+          cd openwrt
+
+          # safeshield
+          make package/safeshield/download V=s
+          make package/safeshield/compile V=s
+
+          # luci-app-safeshield
+          make package/luci-app-safeshield/download V=s
+          make package/luci-app-safeshield/compile V=s
+
+      - name: Stage repo output for GitHub Pages
+        run: |
+          set -eux
+          cd openwrt
+
+          out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${ARCH_DIR}/${CHANNEL}"
           rm -rf "${out}"
           mkdir -p "${out}"
 
-          cp -av "bin/packages/${ARCH}/${FEEDNAME}/." "${out}/"
+          # OpenWrt 빌드 결과: bin/packages/<ARCH_DIR>/<feedname>/
+          # 여러 feed(base, packages, luci, etc)가 생길 수 있으니 전부 모음
+          find "bin/packages/${ARCH_DIR}" -type f -name '*.ipk' -print -exec cp -av {} "${out}/" \;
 
-          # 디버그용 목록 출력
-          ls -alh "${out}"
+          # out/ 디렉터리 기준으로 인덱스 재생성
+          ./scripts/ipkg-make-index.sh "${out}" > "${out}/Packages"
+          gzip -9c "${out}/Packages" > "${out}/Packages.gz"
+
+          # 확인
+          ls -al "${out}"
+          test -s "${out}/Packages"
+          test -s "${out}/Packages.gz"
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
