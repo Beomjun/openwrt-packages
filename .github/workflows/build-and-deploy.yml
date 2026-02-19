@@ -1,0 +1,166 @@
+name: Build & Publish opkg repo (multi packages)
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "stable or beta"
+        required: true
+        default: "stable"
+      arch_dir:
+        description: "Packages output arch dir name (e.g. x86_64, aarch64_cortex-a53, mipsel_24kc)"
+        required: true
+        default: "x86_64"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      CHANNEL: ${{ inputs.channel }}
+      ARCH_DIR: ${{ inputs.arch_dir }}
+
+      # Pages에 배포할 루트
+      PUBLISH_ROOT: repo
+
+      # OpenWrt 소스
+      OPENWRT_REPO: Beomjun/openwrt
+      OPENWRT_REF: production
+
+      # 패키지 소스 repo들
+      SRC_SAFE_REPO: Beomjun/safeshield
+      SRC_SAFE_REF: main
+      SRC_LUCI_REPO: Beomjun/luci-app-safeshield
+      SRC_LUCI_REF: main
+
+    steps:
+      - name: Checkout pages repo (this repo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout OpenWrt (production)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OPENWRT_REPO }}
+          ref: ${{ env.OPENWRT_REF }}
+          path: openwrt
+          fetch-depth: 0
+
+      - name: Checkout SafeShield source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SRC_SAFE_REPO }}
+          ref: ${{ env.SRC_SAFE_REF }}
+          path: src/safeshield
+          fetch-depth: 0
+
+      - name: Checkout LuCI app source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SRC_LUCI_REPO }}
+          ref: ${{ env.SRC_LUCI_REF }}
+          path: src/luci-app-safeshield
+          fetch-depth: 0
+
+      - name: Install build dependencies (Ubuntu)
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gawk git gettext libncurses5-dev libssl-dev \
+            python3 rsync unzip file wget curl ca-certificates zlib1g-dev
+      
+      - name: Fetch opkg-utils (no apt)
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends perl git
+          rm -rf opkg-utils
+          git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
+          test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
+          opkg-utils/opkg-make-index --help | head -n 5
+
+      - name: Prepare OpenWrt feeds and packages
+        run: |
+          set -eux
+          cd openwrt
+
+          # feeds 갱신 (luci.mk 등 필요)
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+          # 로컬 패키지를 "package/" 아래에 직접 배치 (가장 확실)
+          rm -rf package/safeshield package/luci-app-safeshield
+          rsync -a --delete "${GITHUB_WORKSPACE}/src/safeshield/" "package/safeshield/"
+          rsync -a --delete "${GITHUB_WORKSPACE}/src/luci-app-safeshield/" "package/luci-app-safeshield/"
+
+          # 존재 확인
+          test -f "package/safeshield/Makefile"
+          test -f "package/luci-app-safeshield/Makefile"
+
+      - name: Configure OpenWrt (defconfig)
+        run: |
+          set -eux
+          cd openwrt
+          cp ./configs/smart-safe-hub_mark-3.diffconfig .config
+          make defconfig
+
+      - name: Build packages
+        run: |
+          set -eux
+          cd openwrt
+
+          # toolchain
+          make toolchain/install -j"$(nproc)"
+          make target/compile -j"$(nproc)"
+
+          # safeshield
+          make package/safeshield/download V=s
+          make package/safeshield/compile V=s
+
+          # luci-app-safeshield
+          make package/luci-app-safeshield/download V=s
+          make package/luci-app-safeshield/compile V=s
+
+      - name: Stage repo output for GitHub Pages
+        run: |
+          set -eux
+          cd openwrt
+
+          out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${ARCH_DIR}/${CHANNEL}"
+          rm -rf "${out}"
+          mkdir -p "${out}"
+
+          # ✅ 내 패키지만 복사(필요 시 패턴 수정)
+          find "bin/packages/${ARCH_DIR}" -type f -name '*safeshield*.ipk' -exec cp -av {} "${out}/" \;
+
+          # ✅ ipk 존재 확인(없으면 여기서 바로 실패시키기)
+          count="$(find "${out}" -maxdepth 1 -name '*.ipk' | wc -l | tr -d ' ')"
+          echo "IPK count in out: ${count}"
+          test "${count}" -gt 0
+
+          cd "${out}"
+          rm -f Packages Packages.gz
+
+          # ✅ opkg-make-index 결과를 파일로 저장
+          "${GITHUB_WORKSPACE}/opkg-utils/opkg-make-index" . > Packages
+          test -s Packages
+
+          gzip -9c Packages > Packages.gz
+          test -s Packages.gz
+
+          # 확인 출력
+          ls -al
+          head -n 30 Packages
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./
+          keep_files: true
