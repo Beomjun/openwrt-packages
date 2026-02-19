@@ -1,0 +1,98 @@
+name: Build & Publish opkg repo (multi packages)
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "stable or beta"
+        required: true
+        default: "stable"
+      arch:
+        description: "OpenWrt SDK arch (e.g. x86_64, aarch64_cortex-a53)"
+        required: true
+        default: "x86_64"
+  # schedule:
+  #   - cron: "0 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      CHANNEL: ${{ inputs.channel || 'stable' }}
+      ARCH: ${{ inputs.arch || 'x86_64' }}
+
+      PUBLISH_ROOT: repo
+
+      SRC1_REPO: Beomjun/safeshield
+      SRC1_PATH: src/safeshield
+
+      # SRC2_REPO: Beomjun/openwrt-extra-packages
+      # SRC2_PATH: src/extra
+
+      BUILD_PACKAGES: "luci-app-safeshield safeshield"
+
+    steps:
+      - name: Checkout pages repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout package sources (multi repos)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SRC1_REPO }}
+          path: ${{ env.SRC1_PATH }}
+          fetch-depth: 0
+
+      # - name: Checkout extra packages repo
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: ${{ env.SRC2_REPO }}
+      #     path: ${{ env.SRC2_PATH }}
+      #     fetch-depth: 0
+
+      - name: Merge sources into one local feed
+        run: |
+          set -eux
+          rm -rf localfeed
+          mkdir -p localfeed
+
+          rsync -a --delete "${SRC1_PATH}/" "localfeed/safeshield/"
+
+      - name: Build with OpenWrt SDK (generate Packages.gz)
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: ${{ env.ARCH }}
+
+          FEEDNAME: beomjun
+          FEED_DIR: ${{ github.workspace }}/localfeed
+
+          # NO_DEFAULT_FEEDS: 1
+
+          PACKAGES: ${{ env.BUILD_PACKAGES }}
+
+          INDEX: 1
+
+      - name: Prepare publish directory
+        run: |
+          set -eux
+          out="${PUBLISH_ROOT}/${ARCH}/${CHANNEL}"
+          rm -rf "${out}"
+          mkdir -p "${out}"
+
+          cp -av "bin/packages/${ARCH}/${FEEDNAME}/." "${out}/"
+
+          # 디버그용 목록 출력
+          ls -alh "${out}"
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./
+          keep_files: true
