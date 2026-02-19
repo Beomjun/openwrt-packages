@@ -46,6 +46,7 @@ jobs:
         with:
           repository: ${{ env.SRC1_REPO }}
           path: ${{ env.SRC1_PATH }}
+          ref: develop
           fetch-depth: 0
 
       # - name: Checkout extra packages repo
