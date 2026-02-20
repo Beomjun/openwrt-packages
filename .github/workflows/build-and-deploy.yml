@@ -104,6 +104,7 @@ jobs:
           set -eux
           cd openwrt
           ls -alh ./scripts
+          ./scripts/ipkg-make-index.sh
 
           # toolchain
           make toolchain/install -j"$(nproc)"
