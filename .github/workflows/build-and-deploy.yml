@@ -121,6 +121,10 @@ jobs:
           set -eux
           cd openwrt
 
+          if ! command -v sha256 >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v sha256sum)" /usr/local/bin/sha256
+          fi
+
           out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${ARCH_DIR}/${CHANNEL}"
           rm -rf "${out}"
           mkdir -p "${out}"
@@ -130,8 +134,6 @@ jobs:
           find "bin/packages/${ARCH_DIR}" -type f -name '*.ipk' -print -exec cp -av {} "${out}/" \;
 
           # out/ 디렉터리 기준으로 인덱스 재생성
-          pwd
-          ls -alh
           ./scripts/ipkg-make-index.sh "${out}" > "${out}/Packages"
           gzip -9c "${out}/Packages" > "${out}/Packages.gz"
 
