@@ -103,8 +103,6 @@ jobs:
         run: |
           set -eux
           cd openwrt
-          ls -alh ./scripts
-          ./scripts/ipkg-make-index.sh
 
           # toolchain
           make toolchain/install -j"$(nproc)"
@@ -132,6 +130,7 @@ jobs:
           find "bin/packages/${ARCH_DIR}" -type f -name '*.ipk' -print -exec cp -av {} "${out}/" \;
 
           # out/ 디렉터리 기준으로 인덱스 재생성
+          cd openwrt
           ./scripts/ipkg-make-index.sh "${out}" > "${out}/Packages"
           gzip -9c "${out}/Packages" > "${out}/Packages.gz"
 
