@@ -96,6 +96,7 @@ jobs:
         run: |
           set -eux
           cd openwrt
+          cp ./configs/smart-safe-hub_mark-3.diffconfig .config
           make defconfig
 
       - name: Build packages
