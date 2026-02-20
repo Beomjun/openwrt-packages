@@ -121,27 +121,21 @@ jobs:
           set -eux
           cd openwrt
 
-          if ! command -v sha256 >/dev/null 2>&1; then
-            sudo ln -sf "$(command -v sha256sum)" /usr/local/bin/sha256
-          fi
-
           out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${ARCH_DIR}/${CHANNEL}"
           rm -rf "${out}"
           mkdir -p "${out}"
 
-          # OpenWrt 빌드 결과: bin/packages/<ARCH_DIR>/<feedname>/
-          # 여러 feed(base, packages, luci, etc)가 생길 수 있으니 전부 모음
-          find "bin/packages/${ARCH_DIR}" -type f -name '*.ipk' -print -exec cp -av {} "${out}/" \;
+          # ✅ 내 패키지만 모으기
+          find "bin/packages/${ARCH_DIR}" -type f -name '*safeshield*.ipk' -exec cp -av {} "${out}/" \;
 
-          # out/ 디렉터리 기준으로 인덱스 재생성
+          # sha256 명령 제공(필요 시)
+          if ! command -v sha256 >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v sha256sum)" /usr/local/bin/sha256
+          fi
+
           cd "${out}"
           "${GITHUB_WORKSPACE}/openwrt/scripts/ipkg-make-index.sh" . > Packages
           gzip -9c Packages > Packages.gz
-
-          # 확인
-          ls -al "${out}"
-          test -s "${out}/Packages"
-          test -s "${out}/Packages.gz"
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
