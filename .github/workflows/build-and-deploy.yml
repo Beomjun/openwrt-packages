@@ -103,6 +103,7 @@ jobs:
         run: |
           set -eux
           cd openwrt
+          ls -alh
 
           # toolchain
           make toolchain/install -j"$(nproc)"
