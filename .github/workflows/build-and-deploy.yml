@@ -104,6 +104,10 @@ jobs:
           set -eux
           cd openwrt
 
+          # toolchain
+          make toolchain/install -j"$(nproc)"
+          make target/compile -j"$(nproc)"
+
           # safeshield
           make package/safeshield/download V=s
           make package/safeshield/compile V=s
