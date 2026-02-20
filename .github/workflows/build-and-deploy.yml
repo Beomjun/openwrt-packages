@@ -134,8 +134,9 @@ jobs:
           find "bin/packages/${ARCH_DIR}" -type f -name '*.ipk' -print -exec cp -av {} "${out}/" \;
 
           # out/ 디렉터리 기준으로 인덱스 재생성
-          ./scripts/ipkg-make-index.sh "${out}" > "${out}/Packages"
-          gzip -9c "${out}/Packages" > "${out}/Packages.gz"
+          cd "${out}"
+          "${GITHUB_WORKSPACE}/openwrt/scripts/ipkg-make-index.sh" . > Packages
+          gzip -9c Packages > Packages.gz
 
           # 확인
           ls -al "${out}"
