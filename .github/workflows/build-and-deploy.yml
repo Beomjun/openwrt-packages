@@ -1,4 +1,4 @@
-name: Build & Publish opkg repo (multi packages)
+name: Build & Publish custom opkg repo
 
 on:
   workflow_dispatch:
@@ -7,10 +7,6 @@ on:
         description: "stable or beta"
         required: true
         default: "stable"
-      arch_dir:
-        description: "Packages output arch dir name (e.g. x86_64, aarch64_cortex-a53, mipsel_24kc)"
-        required: true
-        default: "x86_64"
 
 permissions:
   contents: write
@@ -19,44 +15,65 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_dir: x86_64
+            target: x86
+            subtarget: 64
+          - arch_dir: aarch64_cortex-a53
+            target: mediatek
+            subtarget: filogic
+
     env:
       CHANNEL: ${{ inputs.channel }}
-      ARCH_DIR: ${{ inputs.arch_dir }}
+      ARCH_DIR: ${{ matrix.arch_dir }}
 
-      # Pages에 배포할 루트
-      PUBLISH_ROOT: repo
+      PUBLISH_ROOT: public
+      FEED_NAME: smartsafehub
 
-      # OpenWrt 소스
       OPENWRT_REPO: Beomjun/openwrt
       OPENWRT_REF: production
 
-      # 패키지 소스 repo들
-      SRC_SAFE_REPO: Beomjun/safeshield
-      SRC_SAFE_REF: main
+      SRC_SAFESHIELD_REPO: Beomjun/safeshield
+      SRC_SAFESHIELD_REF: main
       SRC_LUCI_REPO: Beomjun/luci-app-safeshield
       SRC_LUCI_REF: main
+
+      CUSTOM_PACKAGES: safeshield luci-app-safeshield
+
+      CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPRESS: "true"
+      CCACHE_COMPRESSLEVEL: "6"
+      CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime"
+      CCACHE_UMASK: "002"
 
     steps:
       - name: Checkout pages repo (this repo)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          submodules: false
 
-      - name: Checkout OpenWrt (production)
+      - name: Checkout OpenWrt (production branch)
         uses: actions/checkout@v4
         with:
           repository: ${{ env.OPENWRT_REPO }}
           ref: ${{ env.OPENWRT_REF }}
           path: openwrt
-          fetch-depth: 0
+          fetch-depth: 1
+          submodules: false
 
       - name: Checkout SafeShield source
         uses: actions/checkout@v4
         with:
-          repository: ${{ env.SRC_SAFE_REPO }}
-          ref: ${{ env.SRC_SAFE_REF }}
+          repository: ${{ env.SRC_SAFESHIELD_REPO }}
+          ref: ${{ env.SRC_SAFESHIELD_REF }}
           path: src/safeshield
-          fetch-depth: 0
+          fetch-depth: 1
+          submodules: false
 
       - name: Checkout LuCI app source
         uses: actions/checkout@v4
@@ -64,103 +81,196 @@ jobs:
           repository: ${{ env.SRC_LUCI_REPO }}
           ref: ${{ env.SRC_LUCI_REF }}
           path: src/luci-app-safeshield
-          fetch-depth: 0
+          fetch-depth: 1
+          submodules: false
 
-      - name: Install build dependencies (Ubuntu)
+      - name: Cache OpenWrt downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: openwrt/dl
+          key: openwrt-dl-${{ runner.os }}-${{ env.OPENWRT_REF }}
+          restore-keys: |
+            openwrt-dl-${{ runner.os }}-
+
+      - name: Cache ccache (per arch)
+        uses: actions/cache@v4
+        with:
+          path: openwrt/.ccache
+          key: openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-${{ matrix.arch_dir }}-
+          restore-keys: |
+            openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-${{ matrix.arch_dir }}-
+            openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-
+            openwrt-ccache-${{ runner.os }}-
+
+      - name: Install build dependencies + ccache + opkg-utils deps
         run: |
           set -eux
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential gawk git gettext libncurses5-dev libssl-dev \
-            python3 rsync unzip file wget curl ca-certificates zlib1g-dev
-      
-      - name: Fetch opkg-utils (no apt)
+            python3 rsync unzip file wget curl ca-certificates zlib1g-dev \
+            perl ccache
+
+      - name: Install opkg-utils without apt
         run: |
           set -eux
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends perl git
           rm -rf opkg-utils
           git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
           test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
-          opkg-utils/opkg-make-index --help | head -n 5
 
       - name: Prepare OpenWrt feeds and packages
         run: |
           set -eux
           cd openwrt
 
-          # feeds 갱신 (luci.mk 등 필요)
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          # 로컬 패키지를 "package/" 아래에 직접 배치 (가장 확실)
-          rm -rf package/safeshield package/luci-app-safeshield
-          rsync -a --delete "${GITHUB_WORKSPACE}/src/safeshield/" "package/safeshield/"
-          rsync -a --delete "${GITHUB_WORKSPACE}/src/luci-app-safeshield/" "package/luci-app-safeshield/"
+          for pkg in ${CUSTOM_PACKAGES}; do
+            rm -rf "package/${pkg}"
+            rsync -a --delete "${GITHUB_WORKSPACE}/src/${pkg}/" "package/${pkg}/"
+            test -f "package/${pkg}/Makefile"
+          done
 
-          # 존재 확인
-          test -f "package/safeshield/Makefile"
-          test -f "package/luci-app-safeshield/Makefile"
-
-      - name: Configure OpenWrt (defconfig)
+      - name: Configure OpenWrt (defconfig) + enable ccache
         run: |
           set -eux
           cd openwrt
-          cp ./configs/smart-safe-hub_mark-3.diffconfig .config
+
+          rm -f .config .config.old
+
+          {
+            echo "CONFIG_TARGET_${{ matrix.target }}=y"
+            echo "CONFIG_TARGET_${{ matrix.target }}_${{ matrix.subtarget }}=y"
+            echo ""
+            echo "CONFIG_CCACHE=y"
+            echo "CONFIG_CCACHE_DIR=\"${CCACHE_DIR}\""
+            echo ""
+            for pkg in ${CUSTOM_PACKAGES}; do
+              echo "CONFIG_PACKAGE_${pkg}=m"
+            done
+          } > .config
+
           make defconfig
 
-      - name: Build packages
+      - name: Build packages (per arch) with ccache
         run: |
           set -eux
           cd openwrt
 
-          # toolchain
+          mkdir -p "${CCACHE_DIR}"
+          export CCACHE_DIR="${CCACHE_DIR}"
+          export CCACHE_BASEDIR="${PWD}"
+          export CCACHE_UMASK="${CCACHE_UMASK}"
+
+          ccache --set-config=max_size="${CCACHE_MAXSIZE}" || true
+          ccache --set-config=compress="${CCACHE_COMPRESS}" || true
+          ccache --set-config=compress_level="${CCACHE_COMPRESSLEVEL}" || true
+          ccache --set-config=sloppiness="${CCACHE_SLOPPINESS}" || true
+          ccache -z || true
+
+          echo "ccache (host) before:"
+          ccache -s || true
+
           make toolchain/install -j"$(nproc)"
-          make target/compile -j"$(nproc)"
 
-          # safeshield
-          make package/safeshield/download V=s
-          make package/safeshield/compile V=s
+          for pkg in ${CUSTOM_PACKAGES}; do
+            make "package/${pkg}/compile" -j"$(nproc)" V=s
+          done
 
-          # luci-app-safeshield
-          make package/luci-app-safeshield/download V=s
-          make package/luci-app-safeshield/compile V=s
+          echo "ccache (host) after:"
+          ccache -s || true
 
-      - name: Stage repo output for GitHub Pages
+      - name: Stage repo output (per arch)
         run: |
           set -eux
           cd openwrt
 
-          out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${ARCH_DIR}/${CHANNEL}"
-          rm -rf "${out}"
+          out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${CHANNEL}/packages/${ARCH_DIR}/${FEED_NAME}"
           mkdir -p "${out}"
+          rm -f "${out}"/*.ipk "${out}/Packages" "${out}/Packages.gz"
 
-          # ✅ 내 패키지만 복사(필요 시 패턴 수정)
-          find "bin/packages/${ARCH_DIR}" -type f -name '*safeshield*.ipk' -exec cp -av {} "${out}/" \;
+          find_ipk() {
+            local pkg="$1"
+            ( find bin/packages -type f -name "${pkg}_*.ipk" -print 2>/dev/null || true
+              find bin/targets  -type f -name "${pkg}_*.ipk" -print 2>/dev/null || true
+            ) | while read -r f; do
+              stat -c '%Y %n' "$f" 2>/dev/null || true
+            done | sort -nr | head -n1 | cut -d' ' -f2-
+          }
 
-          # ✅ ipk 존재 확인(없으면 여기서 바로 실패시키기)
-          count="$(find "${out}" -maxdepth 1 -name '*.ipk' | wc -l | tr -d ' ')"
-          echo "IPK count in out: ${count}"
-          test "${count}" -gt 0
+          for pkg in ${CUSTOM_PACKAGES}; do
+            echo "Collecting ${pkg} ipk..."
+            ipk_path="$(find_ipk "${pkg}")"
+            if [ -z "${ipk_path:-}" ]; then
+              echo "ERROR: ${pkg} ipk not found under bin/packages or bin/targets"
+              (find bin/packages -type f -name '*.ipk' -print || true) | head -n 400 || true
+              exit 1
+            fi
+            echo "Using: ${ipk_path}"
+            cp -av "${ipk_path}" "${out}/"
+          done
 
           cd "${out}"
-          rm -f Packages Packages.gz
-
-          # ✅ opkg-make-index 결과를 파일로 저장
           "${GITHUB_WORKSPACE}/opkg-utils/opkg-make-index" . > Packages
-          test -s Packages
-
           gzip -9c Packages > Packages.gz
+          test -s Packages
           test -s Packages.gz
 
-          # 확인 출력
-          ls -al
-          head -n 30 Packages
+      - name: Upload repo artifact (per arch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PUBLISH_ROOT }}-${{ matrix.arch_dir }}-${{ inputs.channel }}
+          path: ${{ env.PUBLISH_ROOT }}/${{ inputs.channel }}/packages/${{ matrix.arch_dir }}/${{ env.FEED_NAME }}
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Deploy to gh-pages
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    env:
+      PUBLISH_ROOT: public
+      CHANNEL: ${{ inputs.channel }}
+      FEED_NAME: smartsafehub
+
+    steps:
+      - name: Checkout pages repo (this repo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Download all repo artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.PUBLISH_ROOT }}-*-${{ inputs.channel }}
+          path: ${{ env.PUBLISH_ROOT }}_tmp
+          merge-multiple: false
+
+      - name: Merge artifacts into public
+        run: |
+          set -eux
+          rm -rf "${PUBLISH_ROOT}"
+          mkdir -p "${PUBLISH_ROOT}/${CHANNEL}/packages"
+
+          for d in "${PUBLISH_ROOT}_tmp"/*; do
+            [ -d "$d" ] || continue
+            base="$(basename "$d")"
+            arch="${base#${PUBLISH_ROOT}-}"
+            arch="${arch%-${CHANNEL}}"
+
+            dest="${PUBLISH_ROOT}/${CHANNEL}/packages/${arch}/${FEED_NAME}"
+            mkdir -p "${dest}"
+            rsync -a --delete "$d/." "${dest}/"
+          done
+
+          find "${PUBLISH_ROOT}" -maxdepth 6 -name 'Packages.gz' -print
+
+      - name: Deploy to gh-pages (single push)
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: ./
+          publish_dir: ./${{ env.PUBLISH_ROOT }}
           keep_files: true
