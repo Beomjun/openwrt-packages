@@ -109,7 +109,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential gawk git gettext libncurses5-dev libssl-dev \
             python3 rsync unzip file wget curl ca-certificates zlib1g-dev \
-            perl ccache
+            perl ccache cmake
 
       - name: Install opkg-utils without apt
         run: |
@@ -117,6 +117,16 @@ jobs:
           rm -rf opkg-utils
           git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
           test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
+      
+      - name: Build usign (host)
+        run: |
+          set -eux
+          rm -rf usign-src
+          git clone --depth=1 https://github.com/openwrt/usign.git usign-src
+          mkdir -p usign-src/build
+          cmake -S usign-src -B usign-src/build
+          cmake --build usign-src/build -j"$(nproc)"
+          test -x usign-src/build/usign
 
       - name: Prepare OpenWrt feeds and packages
         run: |
@@ -172,7 +182,7 @@ jobs:
           echo "ccache (host) before:"
           ccache -s || true
 
-          make toolchain/install -j"$(nproc)"
+          make toolchain/install -j"$(nproc)" V=s
 
           for pkg in ${CUSTOM_PACKAGES}; do
             make "package/${pkg}/compile" -j"$(nproc)" V=s
@@ -181,14 +191,17 @@ jobs:
           echo "ccache (host) after:"
           ccache -s || true
 
-      - name: Stage repo output (per arch)
+      - name: Stage repo output (per arch) + sign Packages (A안)
+        env:
+          USIGN_PRIVATE_KEY: ${{ secrets.USIGN_PRIVATE_KEY }}
+          USIGN_PUBLIC_KEY: ${{ secrets.USIGN_PUBLIC_KEY }}
         run: |
           set -eux
           cd openwrt
 
           out="${GITHUB_WORKSPACE}/${PUBLISH_ROOT}/${CHANNEL}/packages/${ARCH_DIR}/${FEED_NAME}"
           mkdir -p "${out}"
-          rm -f "${out}"/*.ipk "${out}/Packages" "${out}/Packages.gz"
+          rm -f "${out}"/*.ipk "${out}/Packages" "${out}/Packages.gz" "${out}/Packages.sig"
 
           find_ipk() {
             local pkg="$1"
@@ -212,10 +225,30 @@ jobs:
           done
 
           cd "${out}"
+
+          # Packages / Packages.gz 생성
           "${GITHUB_WORKSPACE}/opkg-utils/opkg-make-index" . > Packages
           gzip -9c Packages > Packages.gz
           test -s Packages
           test -s Packages.gz
+
+          # usign private key 준비 (Secrets에서 파일로)
+          umask 077
+          echo "${USIGN_PRIVATE_KEY}" > usign_priv.key
+          echo "${USIGN_PUBLIC_KEY}"  > usign_pub.key
+          chmod 600 usign_priv.key usign_pub.key
+
+          # Packages 서명 → Packages.sig 생성 (opkg가 이 파일을 받으려 함)
+          USIGN_BIN="${GITHUB_WORKSPACE}/usign-src/build/usign"
+          test -x "${USIGN_BIN}"
+
+          "${USIGN_BIN}" -S -m Packages -s usign_priv.key -x Packages.sig
+          test -s Packages.sig
+
+          "${USIGN_BIN}" -V -m Packages -p usign_pub.key -x Packages.sig
+
+          # ✅ 매우 중요 ✅ key 파일을 repo에 포함시키지 않도록 삭제함
+          rm -f usign_priv.key usign_pub.key
 
       - name: Upload repo artifact (per arch)
         uses: actions/upload-artifact@v4
@@ -265,7 +298,7 @@ jobs:
             rsync -a --delete "$d/." "${dest}/"
           done
 
-          find "${PUBLISH_ROOT}" -maxdepth 6 -name 'Packages.gz' -print
+          find "${PUBLISH_ROOT}" -maxdepth 6 -name 'Packages.gz' -o -name 'Packages.sig' -print
 
       - name: Deploy to gh-pages (single push)
         uses: peaceiris/actions-gh-pages@v4
