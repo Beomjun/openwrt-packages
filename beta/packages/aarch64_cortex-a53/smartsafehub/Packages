@@ -24,11 +24,11 @@ Package: safeshield
 Version: 0.1.0-r1
 Depends: libc, curl, jshn
 Section: net
-Architecture: x86_64
+Architecture: aarch64_cortex-a53
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: 0af33950992c25468b937250fab48681
-Size: 3266
-Filename: safeshield_0.1.0-r1_x86_64.ipk
+MD5Sum: d84ad376c336c0641c8035175952f692
+Size: 3280
+Filename: safeshield_0.1.0-r1_aarch64_cortex-a53.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
 License: GPL-3.0-or-later
