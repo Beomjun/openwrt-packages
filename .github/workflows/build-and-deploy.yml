@@ -7,6 +7,9 @@ on:
         description: "stable or beta"
         required: true
         default: "stable"
+  
+  schedule:
+    - cron: '0 15 * * *'
 
 permissions:
   contents: write
@@ -27,7 +30,7 @@ jobs:
             subtarget: filogic
 
     env:
-      CHANNEL: ${{ inputs.channel }}
+      CHANNEL: ${{ inputs.channel || 'stable' }}
       ARCH_DIR: ${{ matrix.arch_dir }}
 
       PUBLISH_ROOT: public
@@ -45,8 +48,8 @@ jobs:
 
       CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
       CCACHE_MAXSIZE: 2G
-      CCACHE_COMPRESS: "true"
-      CCACHE_COMPRESSLEVEL: "6"
+      CCACHE_COMPRESSION: "true"
+      CCACHE_COMPRESSION_LEVEL: "6"
       CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime"
       CCACHE_UMASK: "002"
 
@@ -174,22 +177,16 @@ jobs:
           export CCACHE_UMASK="${CCACHE_UMASK}"
 
           ccache --set-config=max_size="${CCACHE_MAXSIZE}" || true
-          ccache --set-config=compress="${CCACHE_COMPRESS}" || true
-          ccache --set-config=compress_level="${CCACHE_COMPRESSLEVEL}" || true
+          ccache --set-config=compression="${CCACHE_COMPRESSION}" || true
+          ccache --set-config=compression_level="${CCACHE_COMPRESSION_LEVEL}" || true
           ccache --set-config=sloppiness="${CCACHE_SLOPPINESS}" || true
           ccache -z || true
-
-          echo "ccache (host) before:"
-          ccache -s || true
 
           make toolchain/install -j"$(nproc)" V=s
 
           for pkg in ${CUSTOM_PACKAGES}; do
             make "package/${pkg}/compile" -j"$(nproc)" V=s
           done
-
-          echo "ccache (host) after:"
-          ccache -s || true
 
       - name: Stage repo output (per arch) + sign Packages (A안)
         env:
@@ -238,7 +235,6 @@ jobs:
           echo "${USIGN_PUBLIC_KEY}"  > usign_pub.key
           chmod 600 usign_priv.key usign_pub.key
 
-          # Packages 서명 → Packages.sig 생성 (opkg가 이 파일을 받으려 함)
           USIGN_BIN="${GITHUB_WORKSPACE}/usign-src/build/usign"
           test -x "${USIGN_BIN}"
 
@@ -264,7 +260,7 @@ jobs:
 
     env:
       PUBLISH_ROOT: public
-      CHANNEL: ${{ inputs.channel }}
+      CHANNEL: ${{ inputs.channel || 'stable' }}
       FEED_NAME: smartsafehub
 
     steps:
