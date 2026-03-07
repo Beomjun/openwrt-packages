@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: "stable or beta"
+        description: "release channel"
         required: true
-        default: "stable"
+        type: choice
+        options:
+          - stable
+          - beta
+        default: stable
 
   schedule:
     - cron: '0 15 * * *'
