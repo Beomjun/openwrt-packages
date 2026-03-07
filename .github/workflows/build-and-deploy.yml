@@ -7,7 +7,7 @@ on:
         description: "stable or beta"
         required: true
         default: "stable"
-  
+
   schedule:
     - cron: '0 15 * * *'
 
@@ -45,13 +45,6 @@ jobs:
       SRC_LUCI_REF: main
 
       CUSTOM_PACKAGES: safeshield luci-app-safeshield
-
-      CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
-      CCACHE_MAXSIZE: 2G
-      CCACHE_COMPRESSION: "true"
-      CCACHE_COMPRESSION_LEVEL: "6"
-      CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime"
-      CCACHE_UMASK: "002"
 
     steps:
       - name: Checkout pages repo (this repo)
@@ -95,24 +88,14 @@ jobs:
           restore-keys: |
             openwrt-dl-${{ runner.os }}-
 
-      - name: Cache ccache (per arch)
-        uses: actions/cache@v4
-        with:
-          path: openwrt/.ccache
-          key: openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-${{ matrix.arch_dir }}-
-          restore-keys: |
-            openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-${{ matrix.arch_dir }}-
-            openwrt-ccache-${{ runner.os }}-${{ env.OPENWRT_REF }}-
-            openwrt-ccache-${{ runner.os }}-
-
-      - name: Install build dependencies + ccache + opkg-utils deps
+      - name: Install build dependencies + opkg-utils deps
         run: |
           set -eux
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential gawk git gettext libncurses5-dev libssl-dev \
             python3 rsync unzip file wget curl ca-certificates zlib1g-dev \
-            perl ccache cmake
+            perl cmake
 
       - name: Install opkg-utils without apt
         run: |
@@ -120,7 +103,7 @@ jobs:
           rm -rf opkg-utils
           git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
           test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
-      
+
       - name: Build usign (host)
         run: |
           set -eux
@@ -145,7 +128,7 @@ jobs:
             test -f "package/${pkg}/Makefile"
           done
 
-      - name: Configure OpenWrt (defconfig) + enable ccache
+      - name: Configure OpenWrt (defconfig)
         run: |
           set -eux
           cd openwrt
@@ -156,9 +139,6 @@ jobs:
             echo "CONFIG_TARGET_${{ matrix.target }}=y"
             echo "CONFIG_TARGET_${{ matrix.target }}_${{ matrix.subtarget }}=y"
             echo ""
-            echo "CONFIG_CCACHE=y"
-            echo "CONFIG_CCACHE_DIR=\"${CCACHE_DIR}\""
-            echo ""
             for pkg in ${CUSTOM_PACKAGES}; do
               echo "CONFIG_PACKAGE_${pkg}=m"
             done
@@ -166,21 +146,10 @@ jobs:
 
           make defconfig
 
-      - name: Build packages (per arch) with ccache
+      - name: Build packages (per arch)
         run: |
           set -eux
           cd openwrt
-
-          mkdir -p "${CCACHE_DIR}"
-          export CCACHE_DIR="${CCACHE_DIR}"
-          export CCACHE_BASEDIR="${PWD}"
-          export CCACHE_UMASK="${CCACHE_UMASK}"
-
-          ccache --set-config=max_size="${CCACHE_MAXSIZE}" || true
-          ccache --set-config=compression="${CCACHE_COMPRESSION}" || true
-          ccache --set-config=compression_level="${CCACHE_COMPRESSION_LEVEL}" || true
-          ccache --set-config=sloppiness="${CCACHE_SLOPPINESS}" || true
-          ccache -z || true
 
           make toolchain/install -j"$(nproc)" V=s
 
@@ -188,7 +157,7 @@ jobs:
             make "package/${pkg}/compile" -j"$(nproc)" V=s
           done
 
-      - name: Stage repo output (per arch) + sign Packages (A안)
+      - name: Stage repo output (per arch) + sign Packages
         env:
           USIGN_PRIVATE_KEY: ${{ secrets.USIGN_PRIVATE_KEY }}
           USIGN_PUBLIC_KEY: ${{ secrets.USIGN_PUBLIC_KEY }}
@@ -202,7 +171,8 @@ jobs:
 
           find_ipk() {
             local pkg="$1"
-            ( find bin/packages -type f -name "${pkg}_*.ipk" -print 2>/dev/null || true
+            (
+              find bin/packages -type f -name "${pkg}_*.ipk" -print 2>/dev/null || true
               find bin/targets  -type f -name "${pkg}_*.ipk" -print 2>/dev/null || true
             ) | while read -r f; do
               stat -c '%Y %n' "$f" 2>/dev/null || true
@@ -223,16 +193,14 @@ jobs:
 
           cd "${out}"
 
-          # Packages / Packages.gz 생성
           "${GITHUB_WORKSPACE}/opkg-utils/opkg-make-index" . > Packages
           gzip -9c Packages > Packages.gz
           test -s Packages
           test -s Packages.gz
 
-          # usign private key 준비 (Secrets에서 파일로)
           umask 077
           echo "${USIGN_PRIVATE_KEY}" > usign_priv.key
-          echo "${USIGN_PUBLIC_KEY}"  > usign_pub.key
+          echo "${USIGN_PUBLIC_KEY}" > usign_pub.key
           chmod 600 usign_priv.key usign_pub.key
 
           USIGN_BIN="${GITHUB_WORKSPACE}/usign-src/build/usign"
@@ -249,8 +217,8 @@ jobs:
       - name: Upload repo artifact (per arch)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PUBLISH_ROOT }}-${{ matrix.arch_dir }}-${{ inputs.channel }}
-          path: ${{ env.PUBLISH_ROOT }}/${{ inputs.channel }}/packages/${{ matrix.arch_dir }}/${{ env.FEED_NAME }}
+          name: ${{ env.PUBLISH_ROOT }}-${{ matrix.arch_dir }}-${{ env.CHANNEL }}
+          path: ${{ env.PUBLISH_ROOT }}/${{ env.CHANNEL }}/packages/${{ matrix.arch_dir }}/${{ env.FEED_NAME }}
           if-no-files-found: error
           retention-days: 7
 
@@ -273,7 +241,7 @@ jobs:
       - name: Download all repo artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: ${{ env.PUBLISH_ROOT }}-*-${{ inputs.channel }}
+          pattern: ${{ env.PUBLISH_ROOT }}-*-${{ env.CHANNEL }}
           path: ${{ env.PUBLISH_ROOT }}_tmp
           merge-multiple: false
 
@@ -294,7 +262,7 @@ jobs:
             rsync -a --delete "$d/." "${dest}/"
           done
 
-          find "${PUBLISH_ROOT}" -maxdepth 6 -name 'Packages.gz' -o -name 'Packages.sig' -print
+          find "${PUBLISH_ROOT}" -maxdepth 6 \( -name 'Packages.gz' -o -name 'Packages.sig' \) -print
 
       - name: Deploy to gh-pages (single push)
         uses: peaceiris/actions-gh-pages@v4
