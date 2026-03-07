@@ -3,7 +3,7 @@ Lost field SourceDateEpoch, 1771507087
 Lost field URL, https://github.com/Beomjun/luci-app-safeshield
 Lost field Installed-Size, 20480
 Lost field SourceName, safeshield
-Lost field SourceDateEpoch, 1772434424
+Lost field SourceDateEpoch, 1772458497
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 20480
 Package: luci-app-safeshield
@@ -21,14 +21,14 @@ License: GPL-3.0-or-later
 
 
 Package: safeshield
-Version: 0.1.0-r1
+Version: 0.1.1-r2
 Depends: libc, curl, jshn
 Section: net
 Architecture: aarch64_cortex-a53
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: d84ad376c336c0641c8035175952f692
-Size: 3280
-Filename: safeshield_0.1.0-r1_aarch64_cortex-a53.ipk
+MD5Sum: 3b110d3d6b75f2de924041e009921b29
+Size: 3286
+Filename: safeshield_0.1.1-r2_aarch64_cortex-a53.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
 License: GPL-3.0-or-later
