@@ -26,6 +26,7 @@ env:
   OPENWRT_REPO: Beomjun/openwrt
   OPENWRT_REF: production
 
+  OPKG_UTILS_REF: 68a969f0e867ace0d94faf8ebe7c7bb67f59d386
   USIGN_REF: c4c72b1b07945ee192361dc751291a7c98d6adcd
 
   SRC_SAFESHIELD_REPO: Beomjun/safeshield
@@ -50,10 +51,7 @@ jobs:
         run: |
           set -eux
 
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
-            echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
-          elif [ "${CHANNEL}" = "beta" ]; then
+          if [ "${CHANNEL}" = "beta" ]; then
             echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
             echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
           else
@@ -103,7 +101,14 @@ jobs:
           path: usign-src
           key: usign-${{ runner.os }}-${{ env.USIGN_REF }}
 
-      - name: Install build dependencies + opkg-utils deps
+      - name: Cache opkg-utils source
+        id: cache-opkg-utils
+        uses: actions/cache@v4
+        with:
+          path: opkg-utils
+          key: opkg-utils-${{ runner.os }}-${{ env.OPKG_UTILS_REF }}
+
+      - name: Install build dependencies
         run: |
           set -eux
           sudo apt-get update
@@ -112,11 +117,18 @@ jobs:
             python3 rsync unzip file wget curl ca-certificates zlib1g-dev \
             perl cmake
 
-      - name: Install opkg-utils without apt
+      - name: Fetch opkg-utils source (cache miss only)
+        if: steps.cache-opkg-utils.outputs.cache-hit != 'true'
         run: |
           set -eux
           rm -rf opkg-utils
-          git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
+          git clone https://git.yoctoproject.org/opkg-utils opkg-utils
+          git -C opkg-utils checkout "${OPKG_UTILS_REF}"
+
+      - name: Verify opkg-utils
+        run: |
+          set -eux
+          test -f opkg-utils/opkg-make-index
           test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
 
       - name: Fetch usign source (cache miss only)
@@ -125,8 +137,7 @@ jobs:
           set -eux
           rm -rf usign-src
           git clone https://github.com/openwrt/usign.git usign-src
-          cd usign-src
-          git checkout "${USIGN_REF}"
+          git -C usign-src checkout "${USIGN_REF}"
 
       - name: Build usign (cache miss only)
         if: steps.cache-usign.outputs.cache-hit != 'true'
