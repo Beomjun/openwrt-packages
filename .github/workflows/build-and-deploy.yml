@@ -18,37 +18,26 @@ on:
 permissions:
   contents: write
 
+env:
+  CHANNEL: ${{ github.event_name == 'schedule' && 'beta' || (inputs.channel || 'stable') }}
+  PUBLISH_ROOT: public
+  FEED_NAME: smartsafehub
+
+  OPENWRT_REPO: Beomjun/openwrt
+  OPENWRT_REF: production
+
+  USIGN_REF: c4c72b1b07945ee192361dc751291a7c98d6adcd
+
+  SRC_SAFESHIELD_REPO: Beomjun/safeshield
+  SRC_SAFESHIELD_REF: main
+  SRC_LUCI_REPO: Beomjun/luci-app-safeshield
+  SRC_LUCI_REF: main
+
+  CUSTOM_PACKAGES: safeshield luci-app-safeshield
+
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch_dir: x86_64
-            target: x86
-            subtarget: 64
-          - arch_dir: aarch64_cortex-a53
-            target: mediatek
-            subtarget: filogic
-
-    env:
-      CHANNEL: ${{ inputs.channel || 'stable' }}
-      ARCH_DIR: ${{ matrix.arch_dir }}
-
-      PUBLISH_ROOT: public
-      FEED_NAME: smartsafehub
-
-      OPENWRT_REPO: Beomjun/openwrt
-      OPENWRT_REF: production
-
-      SRC_SAFESHIELD_REPO: Beomjun/safeshield
-      SRC_SAFESHIELD_REF: main
-      SRC_LUCI_REPO: Beomjun/luci-app-safeshield
-      SRC_LUCI_REF: main
-
-      CUSTOM_PACKAGES: safeshield luci-app-safeshield
 
     steps:
       - name: Checkout pages repo (this repo)
@@ -56,6 +45,21 @@ jobs:
         with:
           fetch-depth: 1
           submodules: false
+
+      - name: Select source refs by channel
+        run: |
+          set -eux
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
+            echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
+          elif [ "${CHANNEL}" = "beta" ]; then
+            echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
+            echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
+          else
+            echo "SRC_SAFESHIELD_REF=main" >> "$GITHUB_ENV"
+            echo "SRC_LUCI_REF=main" >> "$GITHUB_ENV"
+          fi
 
       - name: Checkout OpenWrt (production branch)
         uses: actions/checkout@v4
@@ -92,6 +96,13 @@ jobs:
           restore-keys: |
             openwrt-dl-${{ runner.os }}-
 
+      - name: Cache usign source and build
+        id: cache-usign
+        uses: actions/cache@v4
+        with:
+          path: usign-src
+          key: usign-${{ runner.os }}-${{ env.USIGN_REF }}
+
       - name: Install build dependencies + opkg-utils deps
         run: |
           set -eux
@@ -108,15 +119,30 @@ jobs:
           git clone --depth=1 https://git.yoctoproject.org/opkg-utils opkg-utils
           test -x opkg-utils/opkg-make-index || chmod +x opkg-utils/opkg-make-index
 
-      - name: Build usign (host)
+      - name: Fetch usign source (cache miss only)
+        if: steps.cache-usign.outputs.cache-hit != 'true'
         run: |
           set -eux
           rm -rf usign-src
-          git clone --depth=1 https://github.com/openwrt/usign.git usign-src
+          git clone https://github.com/openwrt/usign.git usign-src
+          cd usign-src
+          git checkout "${USIGN_REF}"
+
+      - name: Build usign (cache miss only)
+        if: steps.cache-usign.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          test -d usign-src
           mkdir -p usign-src/build
           cmake -S usign-src -B usign-src/build
           cmake --build usign-src/build -j"$(nproc)"
           test -x usign-src/build/usign
+
+      - name: Verify usign binary
+        run: |
+          set -eux
+          test -x usign-src/build/usign
+          usign-src/build/usign -h >/dev/null 2>&1 || true
 
       - name: Prepare OpenWrt feeds and packages
         run: |
@@ -131,6 +157,49 @@ jobs:
             rsync -a --delete "${GITHUB_WORKSPACE}/src/${pkg}/" "package/${pkg}/"
             test -f "package/${pkg}/Makefile"
           done
+
+      - name: Pack prepared workspace
+        run: |
+          set -eux
+          tar -cpf prepared-openwrt-workspace.tar openwrt opkg-utils usign-src
+
+      - name: Upload prepared workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-openwrt-workspace
+          path: prepared-openwrt-workspace.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_dir: x86_64
+            target: x86
+            subtarget: 64
+          - arch_dir: aarch64_cortex-a53
+            target: mediatek
+            subtarget: filogic
+
+    env:
+      ARCH_DIR: ${{ matrix.arch_dir }}
+
+    steps:
+      - name: Download prepared workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-openwrt-workspace
+          path: .
+
+      - name: Extract prepared workspace
+        run: |
+          set -eux
+          tar -xpf prepared-openwrt-workspace.tar
 
       - name: Configure OpenWrt (defconfig)
         run: |
@@ -229,11 +298,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-
-    env:
-      PUBLISH_ROOT: public
-      CHANNEL: ${{ inputs.channel || 'stable' }}
-      FEED_NAME: smartsafehub
 
     steps:
       - name: Checkout pages repo (this repo)
