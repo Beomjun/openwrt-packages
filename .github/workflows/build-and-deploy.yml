@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout pages repo (this repo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           submodules: false
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Checkout OpenWrt (production branch)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.OPENWRT_REPO }}
           ref: ${{ env.OPENWRT_REF }}
@@ -69,7 +69,7 @@ jobs:
           submodules: false
 
       - name: Checkout SafeShield source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.SRC_SAFESHIELD_REPO }}
           ref: ${{ env.SRC_SAFESHIELD_REF }}
@@ -78,7 +78,7 @@ jobs:
           submodules: false
 
       - name: Checkout LuCI app source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.SRC_LUCI_REPO }}
           ref: ${{ env.SRC_LUCI_REF }}
@@ -87,7 +87,7 @@ jobs:
           submodules: false
 
       - name: Cache OpenWrt downloads (dl)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: openwrt/dl
           key: openwrt-dl-${{ runner.os }}-${{ env.OPENWRT_REF }}
@@ -96,14 +96,14 @@ jobs:
 
       - name: Cache usign source and build
         id: cache-usign
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: usign-src
           key: usign-${{ runner.os }}-${{ env.USIGN_REF }}
 
       - name: Cache opkg-utils source
         id: cache-opkg-utils
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: opkg-utils
           key: opkg-utils-${{ runner.os }}-${{ env.OPKG_UTILS_REF }}
@@ -175,7 +175,7 @@ jobs:
           tar -cpf prepared-openwrt-workspace.tar openwrt opkg-utils usign-src
 
       - name: Upload prepared workspace
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prepared-openwrt-workspace
           path: prepared-openwrt-workspace.tar
@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: Download prepared workspace
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: prepared-openwrt-workspace
           path: .
@@ -299,7 +299,7 @@ jobs:
           rm -f usign_priv.key usign_pub.key
 
       - name: Upload repo artifact (per arch)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.PUBLISH_ROOT }}-${{ matrix.arch_dir }}-${{ env.CHANNEL }}
           path: ${{ env.PUBLISH_ROOT }}/${{ env.CHANNEL }}/packages/${{ matrix.arch_dir }}/${{ env.FEED_NAME }}
@@ -312,13 +312,13 @@ jobs:
 
     steps:
       - name: Checkout pages repo (this repo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           submodules: false
 
       - name: Download all repo artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: ${{ env.PUBLISH_ROOT }}-*-${{ env.CHANNEL }}
           path: ${{ env.PUBLISH_ROOT }}_tmp
