@@ -236,6 +236,7 @@ jobs:
           cd openwrt
 
           make toolchain/install -j"$(nproc)" V=s
+          make target/compile -j"$(nproc)" V=s
 
           for pkg in ${CUSTOM_PACKAGES}; do
             make "package/${pkg}/compile" -j"$(nproc)" V=s
