@@ -209,6 +209,9 @@ jobs:
           - arch_dir: aarch64_cortex-a53
             target: mediatek
             subtarget: filogic
+          - arch_dir: mipsel_24kc
+            target: ramips
+            subtarget: mt7620
 
     env:
       ARCH_DIR: ${{ matrix.arch_dir }}
