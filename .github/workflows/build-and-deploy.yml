@@ -33,8 +33,10 @@ env:
   SRC_SAFESHIELD_REF: main
   SRC_LUCI_REPO: Beomjun/luci-app-safeshield
   SRC_LUCI_REF: main
+  SRC_THEME_REPO: Beomjun/luci-theme-smart
+  SRC_THEME_REF: main
 
-  CUSTOM_PACKAGES: safeshield luci-app-safeshield
+  CUSTOM_PACKAGES: safeshield luci-app-safeshield luci-theme-smart
 
 jobs:
   prepare:
@@ -54,9 +56,11 @@ jobs:
           if [ "${CHANNEL}" = "beta" ]; then
             echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
             echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
+            echo "SRC_THEME_REF=develop" >> "$GITHUB_ENV"
           else
             echo "SRC_SAFESHIELD_REF=main" >> "$GITHUB_ENV"
             echo "SRC_LUCI_REF=main" >> "$GITHUB_ENV"
+            echo "SRC_THEME_REF=main" >> "$GITHUB_ENV"
           fi
 
       - name: Checkout OpenWrt (production branch)
@@ -83,6 +87,15 @@ jobs:
           repository: ${{ env.SRC_LUCI_REPO }}
           ref: ${{ env.SRC_LUCI_REF }}
           path: src/luci-app-safeshield
+          fetch-depth: 1
+          submodules: false
+      
+      - name: Checkout Smart theme source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SRC_THEME_REPO }}
+          ref: ${{ env.SRC_THEME_REF }}
+          path: src/luci-theme-smart
           fetch-depth: 1
           submodules: false
 
