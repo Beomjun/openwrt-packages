@@ -1,0 +1,53 @@
+Lost field SourceName, luci-app-safeshield
+Lost field SourceDateEpoch, 1771507087
+Lost field URL, https://github.com/Beomjun/luci-app-safeshield
+Lost field Installed-Size, 20480
+Lost field SourceName, luci-theme-smart
+Lost field SourceDateEpoch, 1762664946
+Lost field URL, https://github.com/openwrt/luci
+Lost field Installed-Size, 18350080
+Lost field SourceName, safeshield
+Lost field SourceDateEpoch, 1772458497
+Lost field URL, https://github.com/Beomjun/safeshield
+Lost field Installed-Size, 20480
+Package: luci-app-safeshield
+Version: 0.1.0-r1
+Depends: libc, luci-base, jsonfilter, safeshield
+Section: luci
+Architecture: all
+Maintainer: OpenWrt LuCI community
+MD5Sum: fee6a7f34321d2c473d0cca909a31dce
+Size: 1922
+Filename: luci-app-safeshield_0.1.0-r1_all.ipk
+Source: feeds/base/luci-app-safeshield
+Description: Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites with a powerful Web UI.
+License: GPL-3.0-or-later
+
+
+Package: luci-theme-smart
+Version: 0.1-r20250101
+Depends: libc, luci-lua-runtime
+Section: luci
+Architecture: all
+Maintainer: OpenWrt LuCI community
+MD5Sum: a176948c737b8b44e270efa2c2ed687a
+Size: 8930175
+Filename: luci-theme-smart_0.1-r20250101_all.ipk
+Source: feeds/base/luci-theme-smart
+Description: Smart Theme
+
+
+Package: safeshield
+Version: 0.1.1-r2
+Depends: libc, curl, jshn
+Section: net
+Architecture: mipsel_24kc
+Maintainer: Beomjun Kang <kals323@gmail.com>
+MD5Sum: 86e338ee6fafe5d7220e9f2b95dbccaf
+Size: 3277
+Filename: safeshield_0.1.1-r2_mipsel_24kc.ipk
+Source: feeds/base/safeshield
+Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
+License: GPL-3.0-or-later
+
+
