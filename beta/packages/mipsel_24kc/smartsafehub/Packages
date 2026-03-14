@@ -7,7 +7,7 @@ Lost field SourceDateEpoch, 1773320964
 Lost field URL, https://github.com/openwrt/luci
 Lost field Installed-Size, 18350080
 Lost field SourceName, safeshield
-Lost field SourceDateEpoch, 1773439575
+Lost field SourceDateEpoch, 1773440010
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 71680
 Package: luci-app-safeshield
@@ -43,8 +43,8 @@ Depends: libc, jshn, uclient-fetch, dnsmasq, gzip, coreutils-sort, grep, sed, pr
 Section: net
 Architecture: all
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: 1f8790526749c123ad297cd276cf90c8
-Size: 13591
+MD5Sum: 097c762baacf72bfbb4165b9afd69a2e
+Size: 13586
 Filename: safeshield_0.2.3-r7_all.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
