@@ -1,7 +1,7 @@
 Lost field SourceName, luci-app-safeshield
-Lost field SourceDateEpoch, 1771507087
+Lost field SourceDateEpoch, 1773642670
 Lost field URL, https://github.com/Beomjun/luci-app-safeshield
-Lost field Installed-Size, 20480
+Lost field Installed-Size, 30720
 Lost field SourceName, luci-theme-smart
 Lost field SourceDateEpoch, 1773320964
 Lost field URL, https://github.com/openwrt/luci
@@ -11,16 +11,16 @@ Lost field SourceDateEpoch, 1773440010
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 71680
 Package: luci-app-safeshield
-Version: 0.1.0-r1
-Depends: libc, luci-base, jsonfilter, safeshield
+Version: 0.1.1-r2
+Depends: libc, luci-base, rpcd, ucode, safeshield
 Section: luci
 Architecture: all
 Maintainer: OpenWrt LuCI community
-MD5Sum: fee6a7f34321d2c473d0cca909a31dce
-Size: 1922
-Filename: luci-app-safeshield_0.1.0-r1_all.ipk
+MD5Sum: 711826d0302d5a904e64cca60a9ce85d
+Size: 4143
+Filename: luci-app-safeshield_0.1.1-r2_all.ipk
 Source: feeds/base/luci-app-safeshield
-Description: Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites with a powerful Web UI.
+Description: SafeShield Web UI for OpenWrt
 License: GPL-3.0-or-later
 
 
