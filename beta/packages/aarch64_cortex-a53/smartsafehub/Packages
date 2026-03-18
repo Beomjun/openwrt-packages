@@ -1,40 +1,42 @@
 Lost field SourceName, luci-app-safeshield
-Lost field SourceDateEpoch, 1773715592
+Lost field SourceDateEpoch, 1773803399
 Lost field URL, https://github.com/Beomjun/luci-app-safeshield
 Lost field Installed-Size, 30720
 Lost field SourceName, luci-theme-smart
-Lost field SourceDateEpoch, 1773320964
+Lost field LicenseFiles, LICENSE
+Lost field SourceDateEpoch, 1773836096
 Lost field URL, https://github.com/openwrt/luci
-Lost field Installed-Size, 18350080
+Lost field Installed-Size, 6359040
 Lost field SourceName, safeshield
 Lost field SourceDateEpoch, 1773440010
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 71680
 Package: luci-app-safeshield
-Version: 0.1.1-r2
+Version: 0.1.2-r3
 Depends: libc, luci-base, rpcd, ucode, safeshield
 Section: luci
 Architecture: all
 Maintainer: OpenWrt LuCI community
-MD5Sum: c1c624110c97f3ae3e50ff7be5db9d8f
-Size: 4149
-Filename: luci-app-safeshield_0.1.1-r2_all.ipk
+MD5Sum: 5d82ce96710b5816bca3acbbca716df0
+Size: 4158
+Filename: luci-app-safeshield_0.1.2-r3_all.ipk
 Source: feeds/base/luci-app-safeshield
 Description: SafeShield Web UI for OpenWrt
 License: GPL-3.0-or-later
 
 
 Package: luci-theme-smart
-Version: 0.1-r20260101
-Depends: libc, luci-lua-runtime
+Version: 0.1.0-r20260101
+Depends: libc, luci-base, luci-lua-runtime
 Section: luci
 Architecture: all
 Maintainer: OpenWrt LuCI community
-MD5Sum: 5e4958d331abcb11cf48f9bd4fab1554
-Size: 8930838
-Filename: luci-theme-smart_0.1-r20260101_all.ipk
+MD5Sum: 9b4fc06079055d759fb0af0d001a377f
+Size: 6233802
+Filename: luci-theme-smart_0.1.0-r20260101_all.ipk
 Source: feeds/base/luci-theme-smart
 Description: Smart Theme
+License: GPL-3.0-or-later
 
 
 Package: safeshield
