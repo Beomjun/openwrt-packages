@@ -4,11 +4,12 @@ Lost field URL, https://github.com/Beomjun/luci-app-safeshield
 Lost field Installed-Size, 30720
 Lost field SourceName, luci-theme-smart
 Lost field LicenseFiles, LICENSE
-Lost field SourceDateEpoch, 1773894451
+Lost field SourceDateEpoch, 1773917495
 Lost field URL, https://github.com/openwrt/luci
-Lost field Installed-Size, 6359040
+Lost field Installed-Size, 6338560
 Lost field SourceName, safeshield
-Lost field SourceDateEpoch, 1773440010
+Lost field LicenseFiles, LICENSE
+Lost field SourceDateEpoch, 1773894959
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 71680
 Package: luci-app-safeshield
@@ -31,8 +32,8 @@ Depends: libc, luci-base, luci-theme-bootstrap
 Section: luci
 Architecture: all
 Maintainer: OpenWrt LuCI community
-MD5Sum: 8c7b10d1c2d361b4a1dc5e9117a79c78
-Size: 6233986
+MD5Sum: 18ea7201d8632f3bc83795002c429a1e
+Size: 6230030
 Filename: luci-theme-smart_0.1.1-r20260101_all.ipk
 Source: feeds/base/luci-theme-smart
 Description: Smart Theme
@@ -45,8 +46,8 @@ Depends: libc, jshn, uclient-fetch, dnsmasq, gzip, coreutils-sort, grep, sed, pr
 Section: net
 Architecture: all
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: 097c762baacf72bfbb4165b9afd69a2e
-Size: 13586
+MD5Sum: ac486d8c3d68166a4a68a04f36cddf0e
+Size: 13610
 Filename: safeshield_0.2.3-r7_all.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
