@@ -56,16 +56,15 @@ jobs:
           set -eux
 
           if [ "${CHANNEL}" = "beta" ]; then
-            echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
-            echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
-            echo "SRC_SMARTSAFEHUB_REF=develop" >> "$GITHUB_ENV"
-            echo "SRC_THEME_REF=develop" >> "$GITHUB_ENV"
+            ref="develop"
           else
-            echo "SRC_SAFESHIELD_REF=main" >> "$GITHUB_ENV"
-            echo "SRC_LUCI_REF=main" >> "$GITHUB_ENV"
-            echo "SRC_SMARTSAFEHUB_REF=main" >> "$GITHUB_ENV"
-            echo "SRC_THEME_REF=main" >> "$GITHUB_ENV"
+            ref="main"
           fi
+
+          echo "SRC_SAFESHIELD_REF=${ref}" >> "$GITHUB_ENV"
+          echo "SRC_LUCI_REF=${ref}" >> "$GITHUB_ENV"
+          echo "SRC_SMARTSAFEHUB_REF=${ref}" >> "$GITHUB_ENV"
+          echo "SRC_THEME_REF=${ref}" >> "$GITHUB_ENV"
 
       - name: Checkout OpenWrt (production branch)
         uses: actions/checkout@v6
@@ -93,7 +92,7 @@ jobs:
           path: src/luci-app-safeshield
           fetch-depth: 1
           submodules: false
-      
+
       - name: Checkout SmartSafeHub LuCI app source
         uses: actions/checkout@v6
         with:
@@ -298,6 +297,9 @@ jobs:
             ipk_path="$(find_ipk "${pkg}")"
             if [ -z "${ipk_path:-}" ]; then
               echo "ERROR: ${pkg} ipk not found under bin/packages or bin/targets"
+              echo "== Config =="
+              grep -E 'CONFIG_PACKAGE_(safeshield|luci-app-safeshield|luci-app-smartsafehub|luci-theme-smart)=' .config || true
+              echo "== Built IPKs =="
               (find bin/packages -type f -name '*.ipk' -print || true) | head -n 400 || true
               exit 1
             fi
