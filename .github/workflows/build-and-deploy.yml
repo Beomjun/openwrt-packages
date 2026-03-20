@@ -33,10 +33,12 @@ env:
   SRC_SAFESHIELD_REF: main
   SRC_LUCI_REPO: Beomjun/luci-app-safeshield
   SRC_LUCI_REF: main
+  SRC_SMARTSAFEHUB_REPO: Beomjun/luci-app-smartsafehub
+  SRC_SMARTSAFEHUB_REF: main
   SRC_THEME_REPO: Beomjun/luci-theme-smart
   SRC_THEME_REF: main
 
-  CUSTOM_PACKAGES: safeshield luci-app-safeshield luci-theme-smart
+  CUSTOM_PACKAGES: safeshield luci-app-safeshield luci-app-smartsafehub luci-theme-smart
 
 jobs:
   prepare:
@@ -56,10 +58,12 @@ jobs:
           if [ "${CHANNEL}" = "beta" ]; then
             echo "SRC_SAFESHIELD_REF=develop" >> "$GITHUB_ENV"
             echo "SRC_LUCI_REF=develop" >> "$GITHUB_ENV"
+            echo "SRC_SMARTSAFEHUB_REF=develop" >> "$GITHUB_ENV"
             echo "SRC_THEME_REF=develop" >> "$GITHUB_ENV"
           else
             echo "SRC_SAFESHIELD_REF=main" >> "$GITHUB_ENV"
             echo "SRC_LUCI_REF=main" >> "$GITHUB_ENV"
+            echo "SRC_SMARTSAFEHUB_REF=main" >> "$GITHUB_ENV"
             echo "SRC_THEME_REF=main" >> "$GITHUB_ENV"
           fi
 
@@ -90,6 +94,15 @@ jobs:
           fetch-depth: 1
           submodules: false
       
+      - name: Checkout SmartSafeHub LuCI app source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.SRC_SMARTSAFEHUB_REPO }}
+          ref: ${{ env.SRC_SMARTSAFEHUB_REF }}
+          path: src/luci-app-smartsafehub
+          fetch-depth: 1
+          submodules: false
+
       - name: Checkout Smart theme source
         uses: actions/checkout@v6
         with:
