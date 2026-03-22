@@ -14,7 +14,7 @@ Lost field URL, https://github.com/openwrt/luci
 Lost field Installed-Size, 6338560
 Lost field SourceName, safeshield
 Lost field LicenseFiles, LICENSE
-Lost field SourceDateEpoch, 1774158235
+Lost field SourceDateEpoch, 1774182540
 Lost field URL, https://github.com/Beomjun/safeshield
 Lost field Installed-Size, 71680
 Package: luci-app-safeshield
@@ -60,14 +60,14 @@ License: GPL-3.0-or-later
 
 
 Package: safeshield
-Version: 0.2.10-r14
+Version: 0.2.11-r15
 Depends: libc, jshn, uclient-fetch, dnsmasq, gzip, coreutils-sort, grep, sed, procd, rpcd, rpcd-mod-ucode, ucode, ucode-mod-fs, ucode-mod-ubus, ucode-mod-uci
 Section: net
 Architecture: all
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: 027c0ab8a3ebb7e7d4c8762434565f79
-Size: 13618
-Filename: safeshield_0.2.10-r14_all.ipk
+MD5Sum: 8782feb736459ec7b4b3f49afd81269e
+Size: 14200
+Filename: safeshield_0.2.11-r15_all.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
 License: GPL-3.0-or-later
