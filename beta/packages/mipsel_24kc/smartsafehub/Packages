@@ -1,6 +1,5 @@
 Lost field SourceName, luci-app-safeshield
-Lost field LicenseFiles, LICENSE
-Lost field SourceDateEpoch, 1774093954
+Lost field SourceDateEpoch, 1774158339
 Lost field URL, https://github.com/Beomjun/luci-app-safeshield
 Lost field Installed-Size, 30720
 Lost field SourceName, luci-app-smartsafehub
@@ -15,18 +14,18 @@ Lost field URL, https://github.com/openwrt/luci
 Lost field Installed-Size, 6338560
 Lost field SourceName, safeshield
 Lost field LicenseFiles, LICENSE
-Lost field SourceDateEpoch, 1774094074
+Lost field SourceDateEpoch, 1774158235
 Lost field URL, https://github.com/Beomjun/safeshield
-Lost field Installed-Size, 81920
+Lost field Installed-Size, 71680
 Package: luci-app-safeshield
-Version: 0.1.4-r5
-Depends: libc, luci-base, rpcd, rpcd-mod-ucode, ucode, safeshield
+Version: 0.1.5-r6
+Depends: libc, luci-base, rpcd, ucode, safeshield
 Section: luci
 Architecture: all
 Maintainer: OpenWrt LuCI community
-MD5Sum: 9714ffab527e8f9f1b4af3653250b25c
-Size: 4762
-Filename: luci-app-safeshield_0.1.4-r5_all.ipk
+MD5Sum: 2db8e5477e7e1edfeb6eb2115aef336e
+Size: 4150
+Filename: luci-app-safeshield_0.1.5-r6_all.ipk
 Source: feeds/base/luci-app-safeshield
 Description: SafeShield Web UI for OpenWrt
 License: GPL-3.0-or-later
@@ -61,14 +60,14 @@ License: GPL-3.0-or-later
 
 
 Package: safeshield
-Version: 0.2.9-r13
-Depends: libc, jshn, uclient-fetch, dnsmasq-full, gzip, coreutils-sort, grep, sed, procd, rpcd, rpcd-mod-ucode, ucode, ucode-mod-fs, ucode-mod-ubus, ucode-mod-uci, firewall4, nftables
+Version: 0.2.10-r14
+Depends: libc, jshn, uclient-fetch, dnsmasq, gzip, coreutils-sort, grep, sed, procd, rpcd, rpcd-mod-ucode, ucode, ucode-mod-fs, ucode-mod-ubus, ucode-mod-uci
 Section: net
 Architecture: all
 Maintainer: Beomjun Kang <kals323@gmail.com>
-MD5Sum: cb758f317bfeddfb3ac4ecf8079807a6
-Size: 14750
-Filename: safeshield_0.2.9-r13_all.ipk
+MD5Sum: 027c0ab8a3ebb7e7d4c8762434565f79
+Size: 13618
+Filename: safeshield_0.2.10-r14_all.ipk
 Source: feeds/base/safeshield
 Description: SafeShield is a Lightweight, DNS-based protection for OpenWrt — block ads and phishing sites.
 License: GPL-3.0-or-later
